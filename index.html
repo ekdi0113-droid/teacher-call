@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call-Teacher | 교무실 호출 시스템</title>
+    
+    <!-- External Assets -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden;
+        }
+
+        .kiosk-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1.5rem;
+            align-content: center;
+        }
+
+        @keyframes pulse-blue {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .button-calling {
+            animation: pulse-blue 1.5s infinite ease-in-out;
+            background-color: #2563eb !important;
+            color: white !important;
+            border-color: #60a5fa !important;
+            z-index: 10;
+        }
+
+        .toast-enter {
+            animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slide-up {
+            from { transform: translate(-50%, 100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900 select-none">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo } = React;
+
+        // 선생님 성함 데이터 (20명)
+        const TEACHERS = [
+            "김철수", "이영희", "박지성", "최수연", "정민호", 
+            "강다혜", "조현우", "윤지민", "임채원", "한승우", 
+            "오지현", "서동현", "권유리", "황정민", "송지효", 
+            "안재현", "전소미", "고아라", "홍길동", "문채원"
+        ];
+
+        function App() {
+            const [callingTeacher, setCallingTeacher] = useState(null);
+            const [toastMessage, setToastMessage] = useState(null);
+            const [currentTime, setCurrentTime] = useState(new Date());
+
+            // 시계 업데이트
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            // TTS 음성 출력
+            const speak = useCallback((name) => {
+                if (callingTeacher) return;
+                
+                window.speechSynthesis.cancel();
+                const message = new SpeechSynthesisUtterance(`${name} 선생님, 학생이 호출합니다.`);
+                message.lang = 'ko-KR';
+                message.rate = 0.85;
+
+                message.onstart = () => setCallingTeacher(name);
+                message.onend = () => {
+                    setCallingTeacher(null);
+                    showToast(`${name} 선생님께 호출을 전달했습니다.`);
+                };
+                message.onerror = () => setCallingTeacher(null);
+
+                window.speechSynthesis.speak(message);
+            }, [callingTeacher]);
+
+            const showToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => setToastMessage(null), 3000);
+            };
+
+            const formattedTime = currentTime.toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', minute: '2-digit', hour12: false 
+            });
+            const formattedDate = currentTime.toLocaleDateString('ko-KR', { 
+                year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' 
+            });
+
+            return (
+                <div className="fixed inset-0 flex flex-col">
+                    {/* 상단바 */}
+                    <div className="bg-white border-b border-slate-200 px-10 py-4 flex justify-between items-center shadow-sm z-20">
+                        <div className="flex items-center gap-4 text-slate-500 font-bold">
+                            <i data-lucide="shield-check" class="text-blue-500 w-7 h-7"></i>
+                            <span className="text-xl tracking-tight uppercase">HWAWON HIGH SCHOOL CALL-KIOSK</span>
+                        </div>
+                        <div className="flex items-center gap-8">
+                            <div className="text-right">
+                                <div className="text-sm font-bold text-slate-400 uppercase tracking-tighter">{formattedDate}</div>
+                                <div className="text-3xl font-black text-slate-800 flex items-center gap-2 justify-end">
+                                    <i data-lucide="clock" class="w-6 h-6"></i>
+                                    {formattedTime}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 헤더 */}
+                    <header className="px-12 py-12 text-center">
+                        <div className="inline-flex items-center gap-2 px-5 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-black mb-6 uppercase tracking-widest">
+                            <i data-lucide="bell" class="w-4 h-4 fill-current"></i>
+                            Teacher Paging Service
+                        </div>
+                        <h1 className="text-6xl font-black mb-6 tracking-tight text-slate-900">
+                            선생님 성함을 <span className="text-blue-600">터치</span>해 주세요
+                        </h1>
+                        <p className="text-2xl text-slate-400 font-medium">
+                            교무실 내부 스피커로 안내 음성이 송출됩니다. 잠시만 기다려 주세요.
+                        </p>
+                    </header>
+
+                    {/* 선생님 그리드 */}
+                    <main className="flex-grow px-12 pb-16 flex flex-col overflow-hidden">
+                        <div className="flex-grow kiosk-grid max-h-full">
+                            {TEACHERS.map((teacher, index) => (
+                                <button
+                                    key={teacher}
+                                    onClick={() => speak(teacher)}
+                                    disabled={callingTeacher && callingTeacher !== teacher}
+                                    className={`
+                                        relative min-h-[170px] flex flex-col items-center justify-center rounded-[2.5rem] transition-all duration-300
+                                        shadow-[0_8px_30px_rgb(0,0,0,0.04)] border-2
+                                        ${callingTeacher === teacher 
+                                            ? 'button-calling shadow-blue-200' 
+                                            : 'bg-white border-white text-slate-700 active:bg-blue-50 active:scale-95'}
+                                        ${callingTeacher && callingTeacher !== teacher ? 'opacity-30 blur-[2px]' : 'opacity-100'}
+                                    `}
+                                >
+                                    <div className="relative z-10 flex flex-col items-center">
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-colors ${callingTeacher === teacher ? 'bg-white/20' : 'bg-slate-50'}`}>
+                                            <i data-lucide="user" class={`w-8 h-8 ${callingTeacher === teacher ? 'text-white' : 'text-slate-400'}`}></i>
+                                        </div>
+                                        <span className="text-4xl font-black mb-1">{teacher}</span>
+                                        <span className={`text-sm font-black tracking-widest uppercase ${callingTeacher === teacher ? 'text-blue-100' : 'text-slate-300'}`}>Teacher</span>
+                                    </div>
+                                    
+                                    {callingTeacher === teacher && (
+                                        <div className="absolute -top-3 -right-3 bg-yellow-400 text-yellow-950 p-3 rounded-full shadow-lg border-4 border-white animate-bounce">
+                                            <i data-lucide="bell" class="w-6 h-6"></i>
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </main>
+
+                    {/* 안내바 */}
+                    <footer className="px-12 py-6 bg-white border-t border-slate-100 flex items-center justify-between text-slate-400 font-bold z-20">
+                        <div className="flex items-center gap-3">
+                            <i data-lucide="info" class="w-5 h-5 text-blue-400"></i>
+                            <span>도움이 필요하시면 교무행정실로 문의해 주세요.</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span className="text-emerald-600 tracking-widest text-sm uppercase">System Online</span>
+                        </div>
+                    </footer>
+
+                    {/* 토스트 알림 */}
+                    {toastMessage && (
+                        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-6 toast-enter">
+                            <div className="bg-slate-900 border-2 border-slate-800 shadow-2xl text-white px-10 py-7 rounded-[2rem] flex items-center gap-6">
+                                <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">
+                                    <i data-lucide="check-circle-2" class="w-8 h-8 text-white"></i>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-emerald-400 text-xs font-black uppercase tracking-widest mb-1">Call Confirmed</span>
+                                    <span className="text-2xl font-bold">{toastMessage}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        // Lucide 아이콘 렌더링 함수
+        function renderIcons() {
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
+        
+        // 데이터 변경 및 로드 시 아이콘 갱신
+        document.addEventListener('DOMContentLoaded', renderIcons);
+        setInterval(renderIcons, 500); // 리액트 렌더링에 대응하기 위한 간단한 폴링
+    </script>
+</body>
+</html>
+

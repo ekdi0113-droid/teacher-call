@@ -1,0 +1,6 @@
+{
+  "name": "Call-Teacher",
+  "description": "교무실 밖 키오스크에서 선생님을 호출하는 시스템입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
